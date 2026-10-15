@@ -36,4 +36,6 @@ model Employee {
   @@index([country])
   @@index([currency])
   @@index([firstName, lastName])
+  @@index([email])
+  @@index([department, country])
 }

@@ -1,88 +1,174 @@
 # Employee Salary Management System
 
-A robust Node.js backend API service for the Employee Salary Management System, powered by Express.js, PostgreSQL, and Prisma ORM.
+A high-performance enterprise Employee Salary Management System built with **React.js**, **Node.js/Express.js**, **PostgreSQL**, and **Prisma ORM**.
 
-## Tech Stack
+Designed to handle large employee directories (including 10,000+ records) with server-side pagination, multi-field search, multi-attribute filtering, strict currency-isolated payroll calculations, and automated testing.
 
-- **Runtime**: Node.js (CommonJS)
-- **Framework**: Express.js (v5)
+---
+
+## 🛠 Technology Stack
+
+- **Frontend**: React.js (JavaScript, Vite, Vanilla CSS design system)
+- **Backend**: Node.js (Express.js v5)
 - **Database & ORM**: PostgreSQL with Prisma ORM (`@prisma/client`, `@prisma/adapter-pg`)
-- **Authentication**: JSON Web Tokens (JWT) & bcryptjs
-- **File Uploads**: Multer
+- **Authentication**: JWT (JSON Web Tokens) with bcryptjs
+- **Testing**: Node.js native test runner (`node:test`, `node:assert`)
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```
+├── client/                     # React frontend application
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx               # Navigation bar & authentication switch
+│   │   │   ├── Dashboard.jsx            # Currency-isolated payroll & compensation analytics
+│   │   │   ├── EmployeeList.jsx         # Employee directory with search, filter, pagination
+│   │   │   ├── EmployeeModal.jsx        # Create / edit employee modal with validation
+│   │   │   ├── EmployeeDetailsModal.jsx # Full profile view modal
+│   │   │   └── AuthModal.jsx            # Sign In / Register / One-Click Demo login
+│   │   ├── services/
+│   │   │   └── api.js                   # API client service with token handling
+│   │   ├── App.jsx                      # Main app controller
+│   │   ├── App.css                      # Layout & component styling
+│   │   └── index.css                    # Design system, tokens, typography
+│   ├── dist/                            # Production build of the frontend
+│   └── vite.config.js                   # Vite configuration with /api proxy
 ├── lib/
-│   └── prisma.js              # Prisma Client instance
+│   └── prisma.js               # Prisma Client singleton
 ├── middleware/
-│   ├── authMiddleware.js      # JWT authentication middleware
-│   └── uploadMiddleware.js    # File upload handling (Multer)
+│   └── authMiddleware.js       # JWT Bearer authentication verification
 ├── prisma/
-│   └── schema.prisma          # Prisma schema definition
+│   ├── schema.prisma           # Prisma schema with indexed queries
+│   └── seed.js                 # Database seed script for 10,000 employees
 ├── routes/
-│   ├── authRoutes.js          # Authentication (Register / Login)
-│   ├── workspaceRoutes.js     # Workspace management
-│   └── taskRoutes.js          # Task management & attachments
-├── uploads/                   # Local file attachment storage
-├── .env                       # Environment configuration
-├── package.json               # Project metadata & dependencies
-├── prisma.config.js           # Prisma CLI configuration
-├── server.js                  # Application entry point & server setup
-└── README.md                  # Project documentation
+│   ├── authRoutes.js           # /api/auth (register, login)
+│   ├── employeeRoutes.js       # /api/employees (CRUD, search, filter, pagination)
+│   └── dashboardRoutes.js      # /api/dashboard (currency-isolated summaries & reports)
+├── tests/
+│   └── salary_and_employee.test.js  # 19 automated tests for all features
+├── .env                        # Environment variables
+├── package.json                # Project dependencies and npm scripts
+├── server.js                   # Express server entry point & SPA static host
+└── README.md                   # Setup guide and API documentation
 ```
 
-## Environment Variables
+---
 
-Create a `.env` file in the project root:
+## ⚙️ Environment Variables
+
+Create or configure `.env` in the root directory:
 
 ```env
 PORT=3000
-JWT_SECRET=your_super_secret_jwt_key
+JWT_SECRET=supersecretjwtkey_salary_mgmt_2026
 DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/<database>?sslmode=require
 ```
 
-## Getting Started
+---
+
+## 🚀 Setup & Running Instructions
 
 ### 1. Install Dependencies
+Install root dependencies and client dependencies:
 ```bash
+# Install backend dependencies
 npm install
+
+# Install frontend dependencies
+npm --prefix client install
 ```
 
-### 2. Synchronize Database Schema
+### 2. Push Database Schema
+Synchronize the PostgreSQL schema:
 ```bash
 npm run db:push
 ```
 
-### 3. Start the Server
-- **Development (with hot reload)**:
-  ```bash
-  npm run dev
-  ```
-- **Production / Watch mode**:
-  ```bash
-  npm start
-  ```
+### 3. Seed Database (10,000 Employees)
+Generate 10,000 employee records with realistic multi-currency salaries across departments and countries:
+```bash
+npm run seed
+```
 
-## API Endpoints
+### 4. Run Automated Tests
+Execute the 19 automated tests covering CRUD, search, pagination, salary updates, and currency-isolated payroll calculations:
+```bash
+npm test
+```
 
-### System Info
-- `GET /` — Returns system health and metadata
+### 5. Build and Run the Application
 
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` — Register a new user (`username`, `email`, `password`)
-- `POST /api/auth/login` — Login user and receive a JWT Bearer token
+#### Option A: Unified Full-Stack Server (Recommended)
+Build the frontend and run the Express server (serves both API on `/api` and the React UI on `/`):
+```bash
+# Build client
+npm run build:client
 
-### Workspaces (`/api/workspaces`) — *Requires Authorization: Bearer <token>*
-- `GET /api/workspaces` — List workspaces belonging to authenticated user
-- `POST /api/workspaces` — Create a new workspace
-- `PUT /api/workspaces/:wsId` — Update workspace details
-- `DELETE /api/workspaces/:wsId` — Delete workspace and associated data
+# Start server
+npm start
+```
+Open **`http://localhost:3000`** in your browser.
 
-### Tasks & Salary Workflows (`/api/workspaces/:wsId/tasks`) — *Requires Authorization: Bearer <token>*
-- `GET /api/workspaces/:wsId/tasks` — List tasks for a workspace
-- `POST /api/workspaces/:wsId/tasks` — Create task with optional file attachment (`multipart/form-data`)
-- `PUT /api/workspaces/:wsId/tasks/:id` — Update task details
-- `DELETE /api/workspaces/:wsId/tasks/:id` — Remove a task
-- `POST /api/workspaces/:wsId/tasks/:id/move` — Move task across workspaces
-- `GET /api/workspaces/:wsId/tasks/:id/download` — Download task attachment file
+#### Option B: Independent Development Servers
+Run the backend and Vite dev server simultaneously:
+```bash
+# Terminal 1: Backend API (port 3000)
+npm run dev
+
+# Terminal 2: React Vite Dev Server (port 5173 with proxy)
+npm run dev:client
+```
+Open **`http://localhost:5173`** in your browser.
+
+---
+
+## 📊 Key Features
+
+### 1. Employee Management
+- **Directory Table**: Clean, responsive table showing employee ID, full name, email, department, role, location, formatted salary, and date of joining.
+- **Search**: Real-time search across first name, last name, employee ID, and email.
+- **Filters**: Dynamic department and country dropdown filters.
+- **Sorting**: Click any sortable column header (Employee ID, Name, Department, Country, Salary, Date of Joining).
+- **Server-Side Pagination**: Efficient pagination handling 10,000+ records with configurable page size (10, 20, 50, 100).
+- **CRUD Operations**: Modal to create new employees, view full profile cards, edit records, and delete records with confirmation.
+
+### 2. Dashboard & Compensation Analytics
+- **Strict Currency Isolation**: Payroll totals and averages are calculated per currency (USD, GBP, INR, EUR, CAD, AUD, JPY, SGD) without invalid currency mixing.
+- **Summary Cards**: Total employees, active currencies, department count, and global presence.
+- **Department-Wise Breakdown**: Detailed table showing headcount, average salary, total payroll, min and max salary per department.
+- **Country-Wise Breakdown**: Regional salary report with local currency isolation.
+
+### 3. Authentication
+- JWT bearer token authentication with password hashing using bcryptjs.
+- One-Click **Demo Admin Login** button in the UI for effortless evaluation.
+
+---
+
+## 📡 API Reference
+
+All protected endpoints require `Authorization: Bearer <token>`.
+
+### Authentication
+- `POST /api/auth/register` — Register a user (`username`, `email`, `password`)
+- `POST /api/auth/login` — Sign in and get a JWT token
+
+### Employees
+- `GET /api/employees` — List employees with query params:
+  - `page` (default: 1)
+  - `limit` (default: 20)
+  - `search` (name, ID, email)
+  - `department` (filter by department)
+  - `country` (filter by country)
+  - `sortBy` & `sortOrder` (`asc` / `desc`)
+- `GET /api/employees/filters` — Get distinct departments and countries
+- `GET /api/employees/:id` — Get single employee record
+- `POST /api/employees` — Create new employee record
+- `PUT /api/employees/:id` — Update employee record
+- `DELETE /api/employees/:id` — Remove employee record
+
+### Dashboard
+- `GET /api/dashboard/summary` — Total employees, currency-wise average salary, and total payroll
+- `GET /api/dashboard/by-department` — Department-wise compensation aggregation
+- `GET /api/dashboard/by-country` — Country-wise compensation aggregation

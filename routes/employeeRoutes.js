@@ -39,12 +39,29 @@ router.get('/', async (req, res) => {
     const orderField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const orderDir = sortOrder === 'asc' ? 'asc' : 'desc';
 
+    // Select only fields needed by the frontend table view
+    const selectFields = {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      department: true,
+      designation: true,
+      country: true,
+      city: true,
+      salary: true,
+      currency: true,
+      dateOfJoining: true
+    };
+
     const [employees, total] = await Promise.all([
       prisma.employee.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { [orderField]: orderDir }
+        orderBy: { [orderField]: orderDir },
+        select: selectFields
       }),
       prisma.employee.count({ where })
     ]);
@@ -120,14 +137,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Validation failed', errors });
     }
 
-    // Check for duplicate employeeId or email
-    const existing = await prisma.employee.findFirst({
-      where: { OR: [{ employeeId }, { email }] }
-    });
+    // Check for duplicate employeeId or email using unique indexes
+    const [existingById, existingByEmail] = await Promise.all([
+      prisma.employee.findUnique({ where: { employeeId }, select: { id: true } }),
+      prisma.employee.findUnique({ where: { email }, select: { id: true } })
+    ]);
 
-    if (existing) {
-      const field = existing.employeeId === employeeId ? 'Employee ID' : 'Email';
-      return res.status(409).json({ message: `${field} already exists` });
+    if (existingById) {
+      return res.status(409).json({ message: 'Employee ID already exists' });
+    }
+    if (existingByEmail) {
+      return res.status(409).json({ message: 'Email already exists' });
     }
 
     const employee = await prisma.employee.create({
@@ -181,7 +201,7 @@ router.put('/:id', async (req, res) => {
 
     // Check email uniqueness if changing email
     if (email && email !== existing.email) {
-      const emailTaken = await prisma.employee.findUnique({ where: { email } });
+      const emailTaken = await prisma.employee.findUnique({ where: { email }, select: { id: true } });
       if (emailTaken) {
         return res.status(409).json({ message: 'Email already exists' });
       }
