@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 
@@ -25,6 +25,9 @@ export default function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmpl
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedEmpForDelete, setSelectedEmpForDelete] = useState(null);
 
+  // Keep a stable ref to the latest fetchEmployees so event listeners don't go stale
+  const fetchEmployeesRef = useRef(null);
+
   // Load filter options once
   useEffect(() => {
     async function loadFilterOptions() {
@@ -39,7 +42,8 @@ export default function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmpl
     loadFilterOptions();
 
     // Listen for employee add/edit events to refresh list
-    const handleUpdated = () => fetchEmployees(1);
+    // Use a ref so the handler always calls the latest fetchEmployees
+    const handleUpdated = () => fetchEmployeesRef.current && fetchEmployeesRef.current(1);
     window.addEventListener('employees:updated', handleUpdated);
     return () => window.removeEventListener('employees:updated', handleUpdated);
   }, []);
@@ -66,6 +70,11 @@ export default function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmpl
       setLoading(false);
     }
   }, [pagination.limit, pagination.page, search, department, country, sortBy, sortOrder]);
+
+  // Always keep ref in sync with latest fetchEmployees
+  useEffect(() => {
+    fetchEmployeesRef.current = fetchEmployees;
+  }, [fetchEmployees]);
 
   useEffect(() => {
     fetchEmployees(1);
@@ -115,9 +124,13 @@ export default function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmpl
       await api.deleteEmployee(selectedEmpForDelete.id);
       setDeleteConfirmOpen(false);
       setSelectedEmpForDelete(null);
-      fetchEmployees(pagination.page);
+      // If we deleted the last item on this page go back one page
+      const newTotal = pagination.total - 1;
+      const safePage = Math.min(pagination.page, Math.max(1, Math.ceil(newTotal / pagination.limit)));
+      fetchEmployees(safePage);
     } catch (err) {
-      alert(`Delete failed: ${err.message}`);
+      setError(`Delete failed: ${err.message}`);
+      setDeleteConfirmOpen(false);
     } finally {
       setDeletingId(null);
     }
