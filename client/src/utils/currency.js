@@ -1,18 +1,20 @@
-export const CURRENCY_SYMBOLS = {
-  USD: '$',
-  GBP: '£',
-  EUR: '€',
-  INR: '₹',
-  CAD: 'CA$',
-  AUD: 'AU$',
-  JPY: '¥',
-  SGD: 'SG$'
-};
+export const CURRENCY_SYMBOL = '₹';
 
-export function formatCurrency(amount, currency) {
-  const symbol = CURRENCY_SYMBOLS[currency] || currency + ' ';
-  return `${symbol}${Number(amount || 0).toLocaleString(undefined, {
-    minimumFractionDigits: currency === 'JPY' ? 0 : 2,
-    maximumFractionDigits: currency === 'JPY' ? 0 : 2
+export function formatINR(amount, includeDecimals = false) {
+  const num = Number(amount) || 0;
+  return `₹${num.toLocaleString('en-IN', {
+    maximumFractionDigits: includeDecimals ? 2 : 0,
+    minimumFractionDigits: includeDecimals ? 2 : 0
   })}`;
+}
+
+export function formatCompactINR(amount) {
+  const num = Number(amount) || 0;
+  if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+  if (num >= 100000) return `₹${(num / 100000).toFixed(2)} L`;
+  return formatINR(num);
+}
+
+export function formatCurrency(amount) {
+  return formatINR(amount);
 }

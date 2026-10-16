@@ -1,8 +1,17 @@
 # Employee Salary Management System
 
-A high-performance enterprise Employee Salary Management System built with **React.js**, **Node.js/Express.js**, **PostgreSQL**, and **Prisma ORM**.
+A web-based Employee Salary Management System for an organisation with 10,000 employees. Built for the HR Manager persona to replace spreadsheet-based salary tracking with a structured, performant, and queryable interface.
 
-Designed to handle large employee directories (including 10,000+ records) with server-side pagination, multi-field search, multi-attribute filtering, strict currency-isolated payroll calculations, and automated testing.
+**Stack:** React.js · Node.js/Express.js · PostgreSQL (Prisma ORM) · JWT Auth
+
+---
+
+## 📄 Artifacts
+
+| Document | Description |
+|---|---|
+| [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) | Goal, scope, features, deliberate exclusions, acceptance criteria |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System diagram, data model, API design, performance decisions, trade-offs |
 
 ---
 
@@ -16,9 +25,13 @@ Designed to handle large employee directories (including 10,000+ records) with s
 
 ---
 
+
 ## 📁 Project Structure
 
 ```
+├── docs/                       # Assessment artifacts
+│   ├── REQUIREMENTS.md         # Requirements document (goal, scope, exclusions)
+│   └── ARCHITECTURE.md         # Architecture diagram, data model, trade-offs
 ├── client/                     # React frontend application
 │   ├── src/
 │   │   ├── components/
@@ -33,7 +46,6 @@ Designed to handle large employee directories (including 10,000+ records) with s
 │   │   ├── App.jsx                      # Main app controller
 │   │   ├── App.css                      # Layout & component styling
 │   │   └── index.css                    # Design system, tokens, typography
-│   ├── dist/                            # Production build of the frontend
 │   └── vite.config.js                   # Vite configuration with /api proxy
 ├── lib/
 │   └── prisma.js               # Prisma Client singleton
@@ -48,7 +60,7 @@ Designed to handle large employee directories (including 10,000+ records) with s
 │   └── dashboardRoutes.js      # /api/dashboard (currency-isolated summaries & reports)
 ├── tests/
 │   └── salary_and_employee.test.js  # 19 automated tests for all features
-├── .env                        # Environment variables
+├── .env.example                # Environment variable template
 ├── package.json                # Project dependencies and npm scripts
 ├── server.js                   # Express server entry point & SPA static host
 └── README.md                   # Setup guide and API documentation
@@ -104,7 +116,7 @@ npm test
 Build the frontend and run the Express server (serves both API on `/api` and the React UI on `/`):
 ```bash
 # Build client
-npm run build:client
+npm run build
 
 # Start server
 npm start

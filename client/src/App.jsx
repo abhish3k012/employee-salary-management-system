@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
+import React, { useState, useEffect, useRef } from 'react';
+import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
+import PaymentHistory from './components/PaymentHistory';
+import Reports from './components/Reports';
+import SalaryManagement from './components/SalaryManagement';
+import Settings from './components/Settings';
 import EmployeeModal from './components/EmployeeModal';
 import EmployeeDetailsModal from './components/EmployeeDetailsModal';
 import AuthModal from './components/AuthModal';
@@ -12,14 +16,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [token, setToken] = useState(getToken());
   const [authModalOpen, setAuthModalOpen] = useState(false);
-
-  // Employee Modals
   const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
-  const [selectedEmployeeForView, setSelectedEmployeeForView] = useState(null);
-
-  // Success Toast
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+  const employeeListSavedRef = useRef(null);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -27,29 +28,21 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Check initial token
-    const currentToken = getToken();
-    setToken(currentToken);
-    if (!currentToken) {
-      setAuthModalOpen(true);
-    }
+    if (!getToken()) setAuthModalOpen(true);
 
-    const handleAuthExpired = () => {
+    const handleExpired = () => {
       setToken('');
       setAuthModalOpen(true);
       showToast('Session expired. Please sign in again.');
     };
 
-    const handleAuthChanged = () => {
-      setToken(getToken());
-    };
+    const handleChanged = () => setToken(getToken());
 
-    window.addEventListener('auth:expired', handleAuthExpired);
-    window.addEventListener('auth:changed', handleAuthChanged);
-
+    window.addEventListener('auth:expired', handleExpired);
+    window.addEventListener('auth:changed', handleChanged);
     return () => {
-      window.removeEventListener('auth:expired', handleAuthExpired);
-      window.removeEventListener('auth:changed', handleAuthChanged);
+      window.removeEventListener('auth:expired', handleExpired);
+      window.removeEventListener('auth:changed', handleChanged);
     };
   }, []);
 
@@ -64,31 +57,58 @@ export default function App() {
     showToast('Logged in successfully!');
   };
 
-  const handleOpenAddEmployee = () => {
-    if (!token) {
-      setAuthModalOpen(true);
-      return;
-    }
+  const openAddEmployee = () => {
+    if (!token) { setAuthModalOpen(true); return; }
     setEmployeeToEdit(null);
     setEmployeeModalOpen(true);
   };
 
-  const handleOpenEditEmployee = (emp) => {
-    if (!token) {
-      setAuthModalOpen(true);
-      return;
-    }
+  const openEditEmployee = (emp) => {
+    if (!token) { setAuthModalOpen(true); return; }
     setEmployeeToEdit(emp);
     setEmployeeModalOpen(true);
   };
 
-  const handleViewEmployee = (emp) => {
-    setSelectedEmployeeForView(emp);
+  const renderContent = () => {
+    if (!token) {
+      return (
+        <div className="auth-required-banner">
+          <div className="auth-card">
+            <div className="auth-card-icon">🔐</div>
+            <h3>Authentication Required</h3>
+            <p>Please log in to manage records, search the employee directory, and view salary analytics.</p>
+            <button className="btn btn-primary" onClick={() => setAuthModalOpen(true)}>
+              Sign In / One-Click Demo Login
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard onNavigateToPayments={() => setActiveTab('payment-history')} onNavigateToEmployees={() => setActiveTab('employees')} />;
+      case 'employees':
+        return (
+          <EmployeeList
+            onAddEmployee={openAddEmployee}
+            onEditEmployee={openEditEmployee}
+            onViewEmployee={setSelectedEmployee}
+            registerSavedCallback={(fn) => { employeeListSavedRef.current = fn; }}
+          />
+        );
+      case 'salary-management':
+        return <SalaryManagement onNavigateToEmployees={() => setActiveTab('employees')} />;
+      case 'payment-history':
+        return <PaymentHistory onViewEmployee={setSelectedEmployee} />;
+      default:
+        return <Dashboard onNavigateToPayments={() => setActiveTab('payment-history')} onNavigateToEmployees={() => setActiveTab('employees')} />;
+    }
   };
 
   return (
-    <div className="app-layout">
-      <Navbar
+    <div className="app-shell">
+      <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         token={token}
@@ -96,55 +116,32 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {toastMessage && (
-        <div className="toast-notification">
-          <span>✓ {toastMessage}</span>
-          <button className="toast-close" onClick={() => setToastMessage('')}>✕</button>
-        </div>
-      )}
-
-      <main className="main-content">
-        {!token ? (
-          <div className="auth-required-banner">
-            <div className="auth-card">
-              <h3>Authentication Required</h3>
-              <p>Please log in to manage records, search the employee directory, and view salary analytics.</p>
-              <button className="btn btn-primary" onClick={() => setAuthModalOpen(true)}>
-                Sign In / One-Click Demo Login
-              </button>
-            </div>
+      <div className="main-wrapper">
+        {toastMessage && (
+          <div className="toast-notification">
+            <span>✓ {toastMessage}</span>
+            <button className="toast-close" onClick={() => setToastMessage('')}>✕</button>
           </div>
-        ) : activeTab === 'dashboard' ? (
-          <Dashboard />
-        ) : (
-          <EmployeeList
-            onAddEmployee={handleOpenAddEmployee}
-            onEditEmployee={handleOpenEditEmployee}
-            onViewEmployee={handleViewEmployee}
-          />
         )}
-      </main>
+        <main className="content-area">{renderContent()}</main>
+      </div>
 
-      {/* Add / Edit Employee Modal */}
       <EmployeeModal
         isOpen={employeeModalOpen}
         onClose={() => setEmployeeModalOpen(false)}
         employeeToEdit={employeeToEdit}
-        onSaved={() => {
+        onSaved={(saved) => {
           showToast(employeeToEdit ? 'Employee updated successfully!' : 'Employee created successfully!');
-          // Refresh list by triggering state change or reload
-          window.dispatchEvent(new Event('employees:updated'));
+          employeeListSavedRef.current?.(saved, Boolean(employeeToEdit));
         }}
       />
 
-      {/* View Employee Details Modal */}
       <EmployeeDetailsModal
-        employee={selectedEmployeeForView}
-        onClose={() => setSelectedEmployeeForView(null)}
-        onEdit={(emp) => handleOpenEditEmployee(emp)}
+        employee={selectedEmployee}
+        onClose={() => setSelectedEmployee(null)}
+        onEdit={openEditEmployee}
       />
 
-      {/* Auth Modal */}
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}

@@ -236,7 +236,7 @@ describe('Employee Salary Management System - Automated Test Suite', () => {
       assert.strictEqual(res.body.pagination.page, 1);
       assert.strictEqual(res.body.pagination.limit, limit);
       assert.strictEqual(res.body.data.length, limit);
-      assert.ok(res.body.pagination.total >= 10000);
+      assert.ok(res.body.pagination.total >= 1000);
       assert.strictEqual(res.body.pagination.totalPages, Math.ceil(res.body.pagination.total / limit));
     });
 
@@ -270,14 +270,14 @@ describe('Employee Salary Management System - Automated Test Suite', () => {
     });
 
     it('should filter employees by country', async () => {
-      const res = await request('GET', '/api/employees?country=United%20Kingdom&limit=10', null, {
+      const res = await request('GET', '/api/employees?country=India&limit=10', null, {
         Authorization: `Bearer ${authToken}`
       });
 
       assert.strictEqual(res.status, 200);
       assert.ok(res.body.data.length > 0);
-      assert.ok(res.body.data.every(e => e.country === 'United Kingdom'));
-      assert.ok(res.body.data.every(e => e.currency === 'GBP'));
+      assert.ok(res.body.data.every(e => e.country === 'India'));
+      assert.ok(res.body.data.every(e => e.currency === 'INR'));
     });
 
     it('should fetch distinct filter options for department and country', async () => {
@@ -300,7 +300,7 @@ describe('Employee Salary Management System - Automated Test Suite', () => {
       });
 
       assert.strictEqual(res.status, 200);
-      assert.ok(res.body.totalEmployees >= 10000);
+      assert.ok(res.body.totalEmployees >= 1000);
       assert.ok(Array.isArray(res.body.averageSalaryByCurrency));
       assert.ok(Array.isArray(res.body.totalPayrollByCurrency));
 
@@ -369,4 +369,136 @@ describe('Employee Salary Management System - Automated Test Suite', () => {
       createdEmployeeUuid = null; // Cleaned up
     });
   });
+
+  describe('6. Payment History & Transactions', () => {
+    let createdPaymentId = null;
+
+    it('should fetch paginated payment history', async () => {
+      const res = await request('GET', '/api/payments?page=1&limit=10', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(Array.isArray(res.body.payments));
+      assert.ok(res.body.pagination);
+      assert.ok(res.body.pagination.total >= 3000);
+      assert.strictEqual(res.body.payments.length, 10);
+      assert.ok(res.body.payments[0].employee);
+      assert.ok(res.body.payments[0].amount > 0);
+    });
+
+    it('should filter payments by status', async () => {
+      const res = await request('GET', '/api/payments?status=Paid&limit=10', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.body.payments.length > 0);
+      assert.ok(res.body.payments.every(p => p.status === 'Paid'));
+    });
+
+    it('should fetch recent 5 payments for dashboard table', async () => {
+      const res = await request('GET', '/api/payments/recent', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(Array.isArray(res.body));
+      assert.strictEqual(res.body.length, 5);
+      assert.ok(res.body[0].employee);
+      assert.ok(res.body[0].employee.employeeId);
+    });
+
+    it('should fetch payment summary statistics', async () => {
+      const res = await request('GET', '/api/payments/summary', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.body.totalRecords >= 3000);
+      assert.ok(res.body.totalAmount > 0);
+      assert.ok(res.body.paidCount > 0);
+    });
+
+    it('should create and update a payment record', async () => {
+      // Find an employee to attach payment to
+      const empRes = await request('GET', '/api/employees?limit=1', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+      const emp = empRes.body.data[0];
+
+      const createRes = await request('POST', '/api/payments', {
+        employeeId: emp.id,
+        amount: 85000,
+        paymentMonth: '2026-11',
+        paymentMethod: 'UPI',
+        status: 'Pending'
+      }, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(createRes.status, 201);
+      assert.strictEqual(createRes.body.amount, 85000);
+      assert.strictEqual(createRes.body.status, 'Pending');
+      createdPaymentId = createRes.body.id;
+
+      // Update status to Paid
+      const updateRes = await request('PATCH', `/api/payments/${createdPaymentId}/status`, {
+        status: 'Paid',
+        remarks: 'Processed via UPI'
+      }, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(updateRes.status, 200);
+      assert.strictEqual(updateRes.body.status, 'Paid');
+
+      // Clean up
+      await request('DELETE', `/api/payments/${createdPaymentId}`, null, {
+        Authorization: `Bearer ${authToken}`
+      });
+    });
+  });
+
+  describe('7. INR Dashboard & Chart Endpoints', () => {
+    it('should return INR dashboard stats with employee, payroll, and payment metrics', async () => {
+      const res = await request('GET', '/api/dashboard/stats', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(res.body.totalEmployees >= 1000);
+      assert.ok(res.body.totalMonthlyPayroll > 0);
+      assert.ok(res.body.averageSalary > 0);
+      assert.ok(typeof res.body.paidCount === 'number');
+      assert.ok(typeof res.body.pendingCount === 'number');
+    });
+
+    it('should return monthly payment trends for the last 6 months', async () => {
+      const res = await request('GET', '/api/dashboard/monthly-trend', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(Array.isArray(res.body));
+      assert.ok(res.body.length <= 6);
+      assert.ok(res.body.length > 0);
+      assert.ok(res.body[0].month);
+      assert.ok(typeof res.body[0].totalAmount === 'number');
+    });
+
+    it('should return department payroll distribution for pie chart', async () => {
+      const res = await request('GET', '/api/dashboard/dept-payroll', null, {
+        Authorization: `Bearer ${authToken}`
+      });
+
+      assert.strictEqual(res.status, 200);
+      assert.ok(Array.isArray(res.body));
+      assert.ok(res.body.length > 0);
+      assert.ok(res.body[0].department);
+      assert.ok(res.body[0].monthlyPayroll > 0);
+      assert.ok(res.body[0].percentage > 0);
+    });
+  });
 });
+

@@ -5,11 +5,7 @@ export function getToken() {
 }
 
 export function setToken(token) {
-  if (token) {
-    localStorage.setItem('esms_token', token);
-  } else {
-    localStorage.removeItem('esms_token');
-  }
+  token ? localStorage.setItem('esms_token', token) : localStorage.removeItem('esms_token');
 }
 
 function clearUser() {
@@ -24,13 +20,9 @@ async function request(path, options = {}) {
     ...(options.headers || {})
   };
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers
-  });
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    // If unauthorized, clear token and notify listener
     setToken('');
     clearUser();
     window.dispatchEvent(new Event('auth:expired'));
@@ -38,29 +30,21 @@ async function request(path, options = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const errorMsg = data.message || (data.errors && data.errors.join(', ')) || 'An error occurred';
-    throw new Error(errorMsg);
+    throw new Error(data.message || (data.errors?.join(', ')) || 'An error occurred');
   }
 
   return data;
 }
 
 export const api = {
-  // Auth
   async login(emailOrUsername, password) {
-    const res = await request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: emailOrUsername, password })
-    });
+    const res = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email: emailOrUsername, password }) });
     setToken(res.token);
     return res;
   },
 
   async register(username, email, password) {
-    return await request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ username, email, password })
-    });
+    return request('/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password }) });
   },
 
   logout() {
@@ -69,58 +53,55 @@ export const api = {
     window.dispatchEvent(new Event('auth:changed'));
   },
 
-  // Employees
   async getEmployees({ page = 1, limit = 20, search = '', department = '', country = '', sortBy = 'createdAt', sortOrder = 'desc' } = {}) {
-    const params = new URLSearchParams();
-    if (page) params.append('page', page);
-    if (limit) params.append('limit', limit);
+    const params = new URLSearchParams({ page, limit });
     if (search) params.append('search', search);
     if (department) params.append('department', department);
     if (country) params.append('country', country);
-    if (sortBy) params.append('sortBy', sortBy);
-    if (sortOrder) params.append('sortOrder', sortOrder);
-
-    return await request(`/employees?${params.toString()}`);
+    params.append('sortBy', sortBy);
+    params.append('sortOrder', sortOrder);
+    return request(`/employees?${params}`);
   },
 
-  async getFilters() {
-    return await request('/employees/filters');
+  getFilters: () => request('/employees/filters'),
+
+  async getEmployeeSuggestions(query) {
+    if (!query?.trim()) return [];
+    return request(`/employees/suggestions?${new URLSearchParams({ q: query.trim() })}`);
   },
 
-  async getEmployee(id) {
-    return await request(`/employees/${id}`);
+  getEmployee: (id) => request(`/employees/${id}`),
+
+  createEmployee: (payload) => request('/employees', { method: 'POST', body: JSON.stringify(payload) }),
+
+  updateEmployee: (id, payload) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+
+  deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
+
+  getDashboardStats: () => request('/dashboard/stats'),
+  getMonthlyTrend: () => request('/dashboard/monthly-trend'),
+  getDeptPayroll: () => request('/dashboard/dept-payroll'),
+  getDashboardSummary: () => request('/dashboard/summary'),
+  getDepartmentReport: () => request('/dashboard/by-department'),
+  getCountryReport: () => request('/dashboard/by-country'),
+
+  async getPayments({ page = 1, limit = 15, search = '', month = '', status = '', method = '', sortBy = 'paymentDate', sortOrder = 'desc' } = {}) {
+    const params = new URLSearchParams({ page, limit, sortBy, sortOrder });
+    if (search) params.append('search', search);
+    if (month && month !== 'all') params.append('month', month);
+    if (status && status !== 'all') params.append('status', status);
+    if (method && method !== 'all') params.append('method', method);
+    return request(`/payments?${params}`);
   },
 
-  async createEmployee(payload) {
-    return await request('/employees', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  },
+  getRecentPayments: () => request('/payments/recent'),
+  getPaymentMonths: () => request('/payments/months'),
+  getPaymentSummary: () => request('/payments/summary'),
 
-  async updateEmployee(id, payload) {
-    return await request(`/employees/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload)
-    });
-  },
+  createPayment: (payload) => request('/payments', { method: 'POST', body: JSON.stringify(payload) }),
 
-  async deleteEmployee(id) {
-    return await request(`/employees/${id}`, {
-      method: 'DELETE'
-    });
-  },
+  updatePaymentStatus: (id, status, remarks = '') =>
+    request(`/payments/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, remarks }) }),
 
-  // Dashboard
-  async getDashboardSummary() {
-    return await request('/dashboard/summary');
-  },
-
-  async getDepartmentReport() {
-    return await request('/dashboard/by-department');
-  },
-
-  async getCountryReport() {
-    return await request('/dashboard/by-country');
-  }
+  deletePayment: (id) => request(`/payments/${id}`, { method: 'DELETE' })
 };
